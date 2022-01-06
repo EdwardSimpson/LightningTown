@@ -72,6 +72,7 @@ public class Assets {
         ParticleEffectLoader loader = new ParticleEffectLoader(new InternalFileHandleResolver());
         manager.setLoader(ParticleEffect.class, loader);
         manager.load("assets/particles/fire.pfx", ParticleEffect.class, loadParam);
+        manager.load("assets/particles/rain.pfx", ParticleEffect.class, loadParam);
 
         manager.finishLoading();
 

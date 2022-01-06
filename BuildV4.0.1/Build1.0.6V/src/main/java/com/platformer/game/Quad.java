@@ -6,6 +6,8 @@ import java.util.List;
 public class Quad {
 
     public float[][] points;
+    Region area = new Region(-400, -400, 400, 400);
+    QuadTree quadTree = new QuadTree(area);
 
     public class Point {
         private float x;
@@ -158,9 +160,13 @@ public class Quad {
         points = _points;
     }
 
+    public void addPoint(float x, float y){
+        Point point = new Point(x, y);
+        quadTree.addPoint(point);
+    }
+
     public boolean SearchRegion(float x1, float y1, float x2,float y2){
-        Region area = new Region(-400, -400, 400, 400);
-        QuadTree quadTree = new QuadTree(area);
+
 
         for (int i = 0; i < points.length; i++) {
             Point point = new Point(points[i][0], points[i][1]);

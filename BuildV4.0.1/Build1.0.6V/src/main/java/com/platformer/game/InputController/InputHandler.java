@@ -9,10 +9,15 @@ public class InputHandler implements InputProcessor {
     public boolean backwards;
     public boolean left;
     public boolean right;
+    public boolean swing;
     public boolean space;
     public boolean sprinting;
     @Override
     public boolean keyDown(int keycode) {
+
+
+       if(Gdx.input.isKeyJustPressed(Input.Keys.F))
+            swing = true;
 
         if(keycode == Input.Keys.W)
             forward = true;
@@ -38,6 +43,9 @@ public class InputHandler implements InputProcessor {
 
     @Override
     public boolean keyUp(int keycode) {
+
+        if(keycode == Input.Keys.F)
+            swing = false;
 
         if(keycode == Input.Keys.W)
             forward = false;

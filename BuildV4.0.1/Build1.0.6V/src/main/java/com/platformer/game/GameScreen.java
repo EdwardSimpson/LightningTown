@@ -1,5 +1,6 @@
 package com.platformer.game;
 
+import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.PerspectiveCamera;
@@ -10,12 +11,12 @@ public class GameScreen implements Screen {
             new PerspectiveCamera(90, Gdx.graphics.getWidth(),
                     Gdx.graphics.getHeight());
 
-    public GameScreen() {
+    public GameScreen(Game g) {
         cam.position.set(0f,0f,3f);
         cam.lookAt(0f,0f,0f);
         cam.near = 0.1f;
         cam.far = 1000f;
-        orch = new Orchestrator(cam);
+        orch = new Orchestrator(cam,g);
     }
 
     @Override

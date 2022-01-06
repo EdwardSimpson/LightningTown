@@ -1,14 +1,12 @@
 package com.platformer.game;
 
 import com.badlogic.gdx.ApplicationAdapter;
+import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.audio.Sound;
-import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.GL20;
-import com.badlogic.gdx.graphics.PerspectiveCamera;
-import com.badlogic.gdx.graphics.VertexAttributes;
+import com.badlogic.gdx.graphics.*;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g3d.*;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
@@ -17,16 +15,18 @@ import com.badlogic.gdx.graphics.g3d.particles.ParticleEffect;
 import com.badlogic.gdx.graphics.g3d.particles.ParticleSystem;
 import com.badlogic.gdx.graphics.g3d.particles.batches.PointSpriteParticleBatch;
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
+import com.badlogic.gdx.math.Matrix4;
+import com.badlogic.gdx.math.Quaternion;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.utils.Array;
 import com.platformer.game.InputController.InputHandler;
-
 import java.util.Random;
 
-public class Orchestrator extends ApplicationAdapter {
 
+public class Orchestrator extends ApplicationAdapter {
+	public SettingsScreen settingsScreen = new SettingsScreen(new GameMenu());
 	public static PerspectiveCamera camera;
 	public static ModelBatch modelBatch;
 	private ModelBuilder modelBuilder;
@@ -35,6 +35,8 @@ public class Orchestrator extends ApplicationAdapter {
 	protected final Vector3 tmp = new Vector3();
 	private int frameCounter = 0;
 	private Array<Character> cmans = new Array<Character>();
+
+
 	private int jumpStart = -1000;
 	private boolean jumping = false;
 	public Level1 level1;
@@ -44,23 +46,29 @@ public class Orchestrator extends ApplicationAdapter {
 	public float[][] points;
 	private Array<ModelInstance> instances = new Array<ModelInstance>();
 	public boolean Colliding = false;
-
+	private float lightingX, lightingY;
 	//Makeshift gui
 	private Stage stage;
 	private Label label;
 	private BitmapFont font;
 	private StringBuilder stringBuilder;
-
+	private int timr = 0;
 	public static boolean wait = true;
-	public static byte hp = 100, lc = 0;
+	public static float hp = 100, lc = 0;
+	public static int killz = 0;
 
 	//particles
 	private ParticleEffect currentEffects;
 	public ParticleSystem particleSystem;
+	private ParticleEffect lightningStrike;
+	private ParticleEffect rainShit;
 
-	public Orchestrator(PerspectiveCamera cam) {
+	private Game gman;
+
+	public Orchestrator(PerspectiveCamera cam, Game g) {
 		this.create();
 		camera = cam;
+		this.gman = g;
 		wait = false;
 	}
 
@@ -87,10 +95,15 @@ public class Orchestrator extends ApplicationAdapter {
 		doneLoading();
 
 		//particle loading **************** ADD PARTICLES HERE
-		currentEffects= Assets.manager.get("assets/particles/fire.pfx",ParticleEffect.class).copy();
-		currentEffects.init();
-		currentEffects.translate(new Vector3(0f,0f,12f));
-		particleSystem.add(currentEffects);
+		lightningStrike= Assets.manager.get("assets/particles/fire.pfx",ParticleEffect.class).copy();
+		lightningStrike.init();
+		lightningStrike.setTransform(new Matrix4(new Vector3(0,-10,0), new Quaternion(0,0,0,0), new Vector3(1,1,1)));
+		particleSystem.add(lightningStrike);
+
+		rainShit = Assets.manager.get("assets/particles/rain.pfx",ParticleEffect.class).copy();
+		rainShit.init();
+		rainShit.setTransform(new Matrix4(new Vector3(camera.position.x, camera.position.y+2f,camera.position.z), new Quaternion(0,0,0,0), new Vector3(1,1,1)));
+		particleSystem.add(rainShit);
 
 		//*****************************************************************************************************
 
@@ -123,11 +136,11 @@ public class Orchestrator extends ApplicationAdapter {
 		//Inputs Handler
 		Gdx.input.setInputProcessor(inputHandler);
 
-		//Sound
-		//initSounds();
-
 		//Character Handler
 		rendMan = new Renderer(GameScreen.cam,cmans);
+		initSounds(settingsScreen.adjustVolume.getVisualValue());
+		System.out.println("Create");
+
 
 	}
 
@@ -137,6 +150,14 @@ public class Orchestrator extends ApplicationAdapter {
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT|GL20.GL_DEPTH_BUFFER_BIT);
 
 		Colliding = quadTree.SearchRegion((camera.position.x+2.5f),(camera.position.z+2.5f),(camera.position.x-2.5f),(camera.position.z-2.5f));
+
+		if (hp <= 0){
+			gman.setScreen(new DeathScreen());
+		}
+
+		if (killz == cmans.size){
+			gman.setScreen(new WinScreen());
+		}
 
 		if (Colliding && inputHandler.forward){
 			if(!(inputHandler.backwards)) {
@@ -158,6 +179,17 @@ public class Orchestrator extends ApplicationAdapter {
 			}
 		}
 
+		timr--;
+		if(inputHandler.swing && timr < 0) {
+			//camera.position.add(0f, .5f, 0f);
+			timr = 20;
+			rendMan.animCount = 12;
+			for (int i9 = 0; i9 < cmans.size; i9++) {
+				if (close(i9)) {
+					cmans.get(i9).hp -= 40;
+				}
+			}
+		}
 
 		if(lightCheck() % 4 == 0)
 			environment.set(new ColorAttribute(ColorAttribute.AmbientLight,0.1f,0.1f,0.1f,1f));
@@ -173,9 +205,6 @@ public class Orchestrator extends ApplicationAdapter {
 
 		frameCounter++;
 
-		if(frameCounter == 3){
-			initSounds();
-		}
 		if(inputHandler.space && camera.position.y < 0.1){  // working on jump
 			jumpStart = frameCounter;
 			System.out.println("Jump start is: " + jumpStart);
@@ -199,7 +228,6 @@ public class Orchestrator extends ApplicationAdapter {
 		if(inputHandler.forward && inputHandler.sprinting){  // sprinting
 			tmp.set(camera.direction).nor().scl(0.15f);
 			camera.position.add(tmp.x,0f, tmp.z);
-
 		}
 
 		if(inputHandler.forward) {
@@ -269,13 +297,15 @@ public class Orchestrator extends ApplicationAdapter {
 		if(inputHandler.right || inputHandler.left || inputHandler.backwards || inputHandler.forward && jumping == false){
 			if(frameCounter % 40.0  == 0.0) {
 				final long id = walking.play();
-				walking.setVolume(id, .8f);
+				walking.setVolume(id, 1f);
 				if(inputHandler.sprinting){
 					walking.pause(id);
 					final long id3 = walking3.play();
 				}
 			}
 		}
+
+		rainShit.setTransform(new Matrix4(new Vector3(camera.position.x, camera.position.y+2f,camera.position.z), new Quaternion(0,0,0,0), new Vector3(1,1,1)));
 
 		camera.update();
 		Assets.update();
@@ -295,25 +325,42 @@ public class Orchestrator extends ApplicationAdapter {
 		stringBuilder.setLength(0);
 		stringBuilder.append(" FPS: ").append(Gdx.graphics.getFramesPerSecond());
 		stringBuilder.append(" Time Left: ").append(lightning.getTime());
-		stringBuilder.append(" Health: ").append(hp);
+		//stringBuilder.append(" Health: ").append(hp);
 		label.setText(stringBuilder);
 		stage.draw();
 
-		//lightning steps
+		//lightning step
 		lightning.step(Gdx.graphics.getDeltaTime());
+
+		if(Colliding){
+			System.out.println("Getting Hit");
+			hp = 0;
+		}
+
+
+		if(lightning.getTime() == 4){
+			System.out.println("Done");
+			lightingX = camera.position.x;
+			lightingY = camera.position.z;
+		}
+
 		if(lightning.getTime() == 0) {
 			lightning.strike(environment, camera);
 			System.out.println("*****STRIKE******");
 
-			hp -= 35;
-
+			Colliding = true;
+			quadTree.addPoint(lightingX, lightingY);
+			lightningStrike.setTransform(new Matrix4(new Vector3(lightingX, 1, lightingY),new Quaternion(0,0,0,0), new Vector3(1,1,1)));
+			if (quadTree.SearchRegion((camera.position.x+2.5f),(camera.position.z+2.5f),(camera.position.x-2.5f),(camera.position.z-2.5f))){
+				hp = 0;
+			}
+			Colliding = false;
 			final Sound thunder = Gdx.audio.newSound(Gdx.files.internal(Assets.thunder));
 			final long id = thunder.play();
 			thunder.setVolume(id, .2f);
 			lc = 16;
-		}
 
-		if(hp < 0) hp = 100;
+		}
 	}
 
 	private void initModels(){
@@ -329,17 +376,38 @@ public class Orchestrator extends ApplicationAdapter {
 				new Material(ColorAttribute.createDiffuse(Color.GREEN)),
 				VertexAttributes.Usage.Position|VertexAttributes.Usage.Normal);
 
+		Model Player2 = modelBuilder.createBox(2f,2f,2f,
+				new Material(ColorAttribute.createDiffuse(Color.GREEN)),
+				VertexAttributes.Usage.Position|VertexAttributes.Usage.Normal);
+
+
 
 		instances = level1.CreateLevel1();
 		points = level1.getPoints();
 		quadTree.DefineQuadTree(points);
 
-		cmans.add(new Character(Player1, camera,"Bob",SPR.SKIN2,SPR.HAIR1_RED,SPR.EYES_RED,SPR.BLANK, 6f,0f,-16f));
+		cmans.add(new Character(Player1, camera,"Bob",SPR.SKIN2,SPR.HAIR1_RED,SPR.EYES_RED,SPR.BLANK, 6f,0f,-24f));
 		cmans.add(new Character(Player, camera,"Bob",SPR.SKIN1,SPR.HAIR1_BLACK,SPR.EYES_RED,SPR.BLANK, 12f,0f,-16f));
+		cmans.add(new Character(Player2, camera, "Bob",SPR.SKIN4,SPR.HAIR1_GRAY,SPR.EYES_RED,SPR.BLANK, 0f,0f,-9f));
+		cmans.add(new Character(Player1, camera,"Bob",SPR.SKIN2,SPR.HAIR1_RED,SPR.EYES_RED,SPR.BLANK, 9f,0f,-24f));
+		cmans.add(new Character(Player, camera,"Bob",SPR.SKIN1,SPR.HAIR1_BLACK,SPR.EYES_RED,SPR.BLANK, 11f,0f,-16f));
+		cmans.add(new Character(Player2, camera, "Bob",SPR.SKIN4,SPR.HAIR1_GRAY,SPR.EYES_RED,SPR.BLANK, 15f,0f,-9f));
+		cmans.add(new Character(Player1, camera,"Bob",SPR.SKIN2,SPR.HAIR1_RED,SPR.EYES_RED,SPR.BLANK, 24f,0f,-24f));
+		cmans.add(new Character(Player, camera,"Bob",SPR.SKIN1,SPR.HAIR1_BLACK,SPR.EYES_RED,SPR.BLANK, 36f,0f,-16f));
+		cmans.add(new Character(Player2, camera, "Bob",SPR.SKIN4,SPR.HAIR1_GRAY,SPR.EYES_RED,SPR.BLANK, 0f,0f,-9f));
+		cmans.add(new Character(Player1, camera,"Bob",SPR.SKIN2,SPR.HAIR1_RED,SPR.EYES_RED,SPR.BLANK, 29f,0f,-24f));
+		cmans.add(new Character(Player, camera,"Bob",SPR.SKIN1,SPR.HAIR1_BLACK,SPR.EYES_RED,SPR.BLANK, 15f,0f,-16f));
+		cmans.add(new Character(Player2, camera, "Bob",SPR.SKIN4,SPR.HAIR1_GRAY,SPR.EYES_RED,SPR.BLANK, 0f,0f,-12f));
+		cmans.add(new Character(Player2, camera, "Bob",SPR.SKIN4,SPR.HAIR1_GOLDBROWN,SPR.EYES_RED,SPR.BLANK, 0f,0f,-50f));
+
+		cmans.get(cmans.size - 1).decal.setWidth(10);
+		cmans.get(cmans.size - 1).decal.setHeight(10);
+		cmans.get(cmans.size - 1).hp = 250;
+		cmans.get(cmans.size - 1).position.y = 2;
 
 	}
 
-	private void initSounds(){
+	public void initSounds(float v){
 		Random rand = new Random();
 		byte int_random = (byte) rand.nextInt(4);
 
@@ -352,25 +420,25 @@ public class Orchestrator extends ApplicationAdapter {
 		switch(int_random) {
 			case 0:
 				music.setLooping(true);
-				music.setVolume(0.2f);
+				music.setVolume(v);
 				music.play();
 				break;
 
 			case 1:
 				music1.setLooping(true);
-				music1.setVolume(0.2f);
+				music1.setVolume(v);
 				music1.play();
 				break;
 
 			case 2:
 				music2.setLooping(true);
-				music2.setVolume(0.2f);
+				music2.setVolume(v);
 				music2.play();
 				break;
 
 			case 3:
 				music3.setLooping(true);
-				music3.setVolume(0.2f);
+				music3.setVolume(v);
 				music3.play();
 
 		}
@@ -384,6 +452,19 @@ public class Orchestrator extends ApplicationAdapter {
 	private void doneLoading() {
 		Assets.load(particleSystem);
 	}
+
+	private boolean close(int bob) {
+		double dist = 0f;
+		double x = cmans.get(bob).position.x - camera.position.x;
+		double y = cmans.get(bob).position.z -  camera.position.z;
+
+
+		dist = Math.sqrt(Math.pow(x,2f) + Math.pow(y,2f));
+
+		return (dist < 4f);
+
+	}
+
 
 	@Override
 	public void dispose(){

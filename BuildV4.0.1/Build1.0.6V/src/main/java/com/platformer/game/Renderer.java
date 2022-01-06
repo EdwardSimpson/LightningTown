@@ -2,6 +2,7 @@ package com.platformer.game;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.PerspectiveCamera;
+import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
@@ -20,9 +21,14 @@ public class Renderer {
     private DecalBatch batch;
     private Array<Character> cman;
     private Vector3 cposition, cdirection, E1, E2;
+    public Animation<TextureRegion> swingAnimation;
+    public int animCount;
+    private TextureRegion swords[] = new TextureRegion[5];
 
 
-    private Decal swordy;
+
+
+    public static Decal swordy;
 
     private GUI gui;
 
@@ -38,9 +44,17 @@ public class Renderer {
         cposition = new Vector3(cam.position);
         cdirection = new Vector3(cam.direction);
 
+
+        swords[0] = new TextureRegion(new Texture(Gdx.files.internal("assets/swordy0.png")));
+        swords[1] = new TextureRegion(new Texture(Gdx.files.internal("assets/swordy1.png")));
+        swords[2] = new TextureRegion(new Texture(Gdx.files.internal("assets/swordy1.5.png")));
+        swords[3] = new TextureRegion(new Texture(Gdx.files.internal("assets/swordy2.png")));
+        swords[4] = new TextureRegion(new Texture(Gdx.files.internal("assets/swordy3.png")));
+        swingAnimation = new Animation<TextureRegion>(0.2f, swords);
+
         gui = new GUI();
 
-        swordy = Decal.newDecal(2,1.5f,new TextureRegion(new Texture("assets/unknown.png")),true);
+        swordy = Decal.newDecal(2,2f,new TextureRegion(new Texture("assets/swordy0.png")),true);
         swordy.setPosition(cam.position.x + 1,cam.position.y,cam.position.z+1);
     }
 
@@ -59,6 +73,15 @@ public class Renderer {
             cman.get(i).decal.setTextureRegion(cman.get(i).anis.getKeyFrame(stateTime, true));
             cman.get(i).decal.lookAt(camera.position, camera.up);
             batch.add(cman.get(i).decal);
+
+            if(close10(i) && cman.get(i).hp > 0) {
+                if(close2(i)) {
+                    cman.get(i).aggro = false;
+                    System.out.println("You gettin Slapped RN");
+                    Orchestrator.hp -= 5 * delta;
+                } else
+                    cman.get(i).aggro = true;
+            }
         }
 
         tempDX = camera.direction.x;
@@ -79,13 +102,46 @@ public class Renderer {
 
         swordy.lookAt(E2,camera.up);
 
+
+        if(animCount > 0) {
+            if(animCount == 8){
+                final Sound swing = Gdx.audio.newSound(Gdx.files.internal("assets/swordSwing.ogg"));
+                //swing.setVolume(1f,1f);
+                swing.play();
+            }
+            swordy.setTextureRegion(swingAnimation.getKeyFrame(stateTime, true));
+            animCount--;
+        }
+        else{
+            swordy.setTextureRegion(swords[0]);
+        }
         batch.add(swordy);
-
-
 
         batch.flush();
 
         gui.render(delta);
+    }
+
+    private boolean close10(int bob) {
+        double dist = 0f;
+        double x = cman.get(bob).position.x - camera.position.x;
+        double y = cman.get(bob).position.z -  camera.position.z;
+
+
+        dist = Math.sqrt(Math.pow(x,2f) + Math.pow(y,2f));
+
+        return (dist < 10f);
+
+    }
+    private boolean close2(int bob) {
+        double dist = 0f;
+        double x = cman.get(bob).position.x - camera.position.x;
+        double y = cman.get(bob).position.z -  camera.position.z;
+
+
+        dist = Math.sqrt(Math.pow(x,2f) + Math.pow(y,2f));
+
+        return (dist < 2f);
 
     }
 

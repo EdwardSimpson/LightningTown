@@ -3,9 +3,8 @@ package com.platformer.game.desktop;
 import com.badlogic.gdx.Files;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
-import com.badlogic.gdx.graphics.Color;
 import com.platformer.game.GameMenu;
-import com.platformer.game.Orchestrator;
+
 
 
 

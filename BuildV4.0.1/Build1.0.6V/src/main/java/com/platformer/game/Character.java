@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.decals.Decal;
+
 import com.badlogic.gdx.math.Quaternion;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
@@ -17,20 +18,22 @@ import static com.platformer.game.AID.*;
 public class Character {
     public Model character;
     public ModelInstance c;
-    public byte hp;
+    public float hp;
     public String id;
     public Decal decal;
     public int state = IDLE.val();
     private byte b = -1;
-    public Vector3 position, prevPosition;
+    public Vector3 position, prevPosition, tmpMovement;
     private Vector3 velocity = new Vector3(0f,0f,0f), xAxis = new Vector3(1f,0f,0f), nxAxis = new Vector3(-1f,0f,0f);
     private Texture sprite;
     private TextureRegion texMain[];
     private Array<TextureRegion[]> texi = new Array<TextureRegion[]>();
     public Animation<TextureRegion> anis;
+    public boolean aggro = false;
     private PerspectiveCamera cam;
-    private float stateTime;
     private float animSpeed = 0.2f;
+    private int timestamp = 0;
+    private float speed = 0.1f;
 
     public Character(Model c1,PerspectiveCamera camera, String ID, SPR Skin, SPR Hair, SPR Hat, SPR Shirt, float x, float y, float z) {
         this.cam = camera;
@@ -51,13 +54,28 @@ public class Character {
     }
 
     public void step(float delta) {
-        this.position = this.c.transform.getTranslation(new Vector3());
-        velocity = getVelocity(prevPosition,delta);
+        if(hp > 0) {
 
-        if(!velocity.epsilonEquals(0f,0f,0f)) {
-           b = checkDir(Orchestrator.camera.position);
-        }
-        else b = -1;
+            if(aggro) {
+                double x1 = 0, z1 = 0;
+                tmpMovement = new Vector3(this.position.x - Orchestrator.camera.position.x,0,this.position.z - Orchestrator.camera.position.z);
+                //tmpMovement.nor();
+                //System.out.println("Total Movement" + tmpMovement + "\n");
+                double target = Math.sqrt(tmpMovement.x * tmpMovement.x + tmpMovement.z * tmpMovement.z);
+                x1 = (tmpMovement.x/target) * this.speed;
+                z1 = (tmpMovement.z/target) * this.speed;
+                double dtr = Math.sqrt(x1 * x1 + z1 * z1);
+                //System.out.println("X Movement" + x1 + "\n");
+                //System.out.println("Z Movement" + z1 + "\n");
+                this.position.sub((float)x1, 0 ,(float)z1);
+            }
+            //this.position = this.c.transform.getTranslation(new Vector3());
+            velocity = getVelocity(prevPosition, delta);
+
+            if (!velocity.epsilonEquals(0f, 0f, 0f)) {
+                b = checkDir(Orchestrator.camera.position);
+            } else b = -1;
+
 
             switch (b) {
                 case 0:
@@ -76,15 +94,25 @@ public class Character {
                     setAnim(WALK_AWAY);
             }
 
-
-        //if(hp < 1); //die
-        this.prevPosition = this.position;
+            this.prevPosition = new Vector3(this.position);
+        }
+        else {
+            if((timestamp++) < 10)
+                setAnim(DEAD);
+            else {
+                if(this.texMain != texi.get(FDEAD.val()) ) {
+                    Orchestrator.killz++;
+                    this.texMain = texi.get(FDEAD.val());
+                    anis = new Animation<TextureRegion>(animSpeed, texMain);
+                }
+            }
+        }
     }
 
     private void setAnim(AID a) {
         if(this.texMain != texi.get(a.val()) ) {
             this.texMain = texi.get(a.val());
-            anis = new Animation<TextureRegion>(animSpeed, texMain);
+                anis = new Animation<TextureRegion>(animSpeed, texMain);
         }
         return;
     }
@@ -157,6 +185,23 @@ public class Character {
         tmpR4[3] = tmp[1][1];
 
         texi.add(tmpR4);
+
+        TextureRegion tmpR5[] = new TextureRegion[4];
+
+        //walk towards - loc 4
+        tmpR5[0] = tmp[6][13];
+        tmpR5[1] = tmp[6][15];
+        tmpR5[2] = tmp[6][20];
+        tmpR5[3] = tmp[6][21];
+
+        texi.add(tmpR5);
+
+        TextureRegion tmpR6[] = new TextureRegion[1];
+
+        //walk towards - loc 4
+        tmpR6[0] = tmp[6][21];
+
+        texi.add(tmpR6);
 
         setAnim(IDLE);
 
@@ -258,7 +303,6 @@ public class Character {
             velocity.set(velocity.x / deltaTime, velocity.y / deltaTime, velocity.z / deltaTime);
             //System.out.println("Velocity - x"+velocity.x+"- y"+velocity.y+"- z"+velocity.z);
         }
-
         return velocity;
     }
 
@@ -281,7 +325,6 @@ public class Character {
             dotProduct = xAxis.dot(direction);
             angle = Math.acos(dotProduct);
         }
-
         return angle;
     }
 }
